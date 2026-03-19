@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<!-- saved from url=(0056)file:///Users/sasakikeiichi/AI-BRIDGE/CloseoutBuyer.html -->
-<html lang="ja"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>CloseoutBuyer - スポット商品買付</title>
 <!-- CDNからhtml5-qrcode読み込み（iPhone対応） -->
-<script src="./CloseoutBuyer - スポット商品買付−1_files/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans',sans-serif;background:#0F172A;color:#F8FAFC;padding:12px;min-height:100vh;-webkit-text-size-adjust:100%}
@@ -102,9 +102,9 @@ h2{font-size:18px;margin-bottom:8px}
 <h2>CloseoutBuyer</h2>
 
 <div class="tabs">
-  <button class="tab active" onclick="showTab(&#39;scan&#39;)">スキャン</button>
-  <button class="tab" onclick="showTab(&#39;list&#39;)">リスト(<span id="countBadge">0</span>)</button>
-  <button class="tab" onclick="showTab(&#39;data&#39;)">データ</button>
+  <button class="tab active" onclick="showTab('scan')">スキャン</button>
+  <button class="tab" onclick="showTab('list')">リスト(<span id="countBadge">0</span>)</button>
+  <button class="tab" onclick="showTab('data')">データ</button>
 </div>
 
 <!-- === スキャンタブ === -->
@@ -180,7 +180,7 @@ h2{font-size:18px;margin-bottom:8px}
   <div class="summary" id="summary"></div>
   <div id="listItems"></div>
   <button class="btn btn-csv" onclick="exportCSV()" style="margin-top:12px">CSV出力</button>
-  <button class="btn btn-scan" onclick="showTab(&#39;scan&#39;)" style="margin-top:6px">スキャンに戻る</button>
+  <button class="btn btn-scan" onclick="showTab('scan')" style="margin-top:6px">スキャンに戻る</button>
 </div>
 
 <!-- === データ管理タブ === -->
@@ -381,7 +381,7 @@ async function searchJanOnline(jan) {
 async function searchOpenFoodFacts(jan) {
   try {
     const resp = await fetch(`https://world.openfoodfacts.org/api/v2/product/${jan}.json`, {
-      signal: AbortSignal.timeout(5000)
+      signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined
     });
     if (!resp.ok) return null;
     const data = await resp.json();
@@ -401,7 +401,7 @@ async function searchOpenFoodFacts(jan) {
 async function searchUPCItemDB(jan) {
   try {
     const resp = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${jan}`, {
-      signal: AbortSignal.timeout(5000)
+      signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined
     });
     if (!resp.ok) return null;
     const data = await resp.json();
@@ -444,13 +444,21 @@ async function startScan() {
     startBtn.textContent = 'カメラ起動中...';
     startBtn.disabled = true;
 
+    // ライブラリ読込チェック
+    if (typeof Html5Qrcode === 'undefined') {
+      throw new Error('バーコードライブラリが読み込めていません。ページを再読込してください。');
+    }
+
     scanner = new Html5Qrcode("reader");
 
-    // iOS対応: facingModeを使用（カメラID指定よりiOSで安定）
+    // iOS Safari対応: シンプルな設定（aspectRatio除去、qrboxを画面幅に合わせる）
+    const readerWidth = document.getElementById('reader').clientWidth || 300;
+    const qrboxWidth = Math.min(250, readerWidth - 40);
+    const qrboxHeight = Math.min(120, qrboxWidth * 0.5);
+
     const config = {
       fps: 10,
-      qrbox: { width: 250, height: 120 },
-      aspectRatio: 1.5,
+      qrbox: { width: qrboxWidth, height: qrboxHeight },
       formatsToSupport: [
         Html5QrcodeSupportedFormats.EAN_13,
         Html5QrcodeSupportedFormats.EAN_8,
@@ -472,12 +480,37 @@ async function startScan() {
 
     const onFail = () => {};
 
-    await scanner.start(
-      { facingMode: "environment" },
-      config,
-      onSuccess,
-      onFail
-    );
+    // iOS Safari: まずfacingModeで試行、失敗したらカメラ一覧から選択
+    try {
+      await scanner.start(
+        { facingMode: "environment" },
+        config,
+        onSuccess,
+        onFail
+      );
+    } catch (e1) {
+      console.log('facingMode failed, trying camera list:', e1);
+      // フォールバック: カメラ一覧から最初のカメラを使用
+      try {
+        const cameras = await Html5Qrcode.getCameras();
+        if (cameras && cameras.length > 0) {
+          // 背面カメラを優先
+          let camId = cameras[0].id;
+          for (const cam of cameras) {
+            const label = (cam.label || '').toLowerCase();
+            if (label.includes('back') || label.includes('rear') || label.includes('背面')) {
+              camId = cam.id;
+              break;
+            }
+          }
+          await scanner.start(camId, config, onSuccess, onFail);
+        } else {
+          throw new Error('カメラが見つかりません');
+        }
+      } catch (e2) {
+        throw e2;
+      }
+    }
 
     scanning = true;
     startBtn.style.display = 'none';
@@ -486,11 +519,17 @@ async function startScan() {
     console.error('Scanner error:', e);
     startBtn.textContent = 'カメラを起動してスキャン';
     startBtn.disabled = false;
-    // iOSでカメラ権限が拒否された場合のメッセージ
-    if (e.toString().includes('NotAllowedError') || e.toString().includes('Permission')) {
-      alert('カメラへのアクセスが拒否されました。\n\n設定 > Safari > カメラ から許可してください。\n\nまた、HTTPSでのアクセスが必要です。');
+    const errStr = e.toString();
+    if (errStr.includes('NotAllowedError') || errStr.includes('Permission')) {
+      alert('カメラへのアクセスが拒否されました。\n\niPhoneの場合:\n設定 > Safari > カメラ で「許可」に変更してください。');
+    } else if (errStr.includes('NotFoundError') || errStr.includes('見つかりません')) {
+      alert('カメラが見つかりません。\n\nカメラ付きのデバイスで開いてください。');
+    } else if (errStr.includes('NotReadableError') || errStr.includes('Could not start')) {
+      alert('カメラが他のアプリで使用中か、アクセスできません。\n\n他のアプリのカメラを閉じてから再度お試しください。');
+    } else if (errStr.includes('ライブラリ')) {
+      alert(errStr);
     } else {
-      alert('カメラの起動に失敗しました。\n\n' + e.toString());
+      alert('カメラの起動に失敗しました。\n\nエラー: ' + errStr + '\n\nページを再読込して再度お試しください。');
     }
   }
 }
@@ -764,6 +803,5 @@ function exportCSV() {
 }
 </script>
 
-
-
-</body></html>
+</body>
+</html>
