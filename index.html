@@ -336,53 +336,86 @@ function parseCSVLine(line) {
 }
 
 // =============================================
-// === JAN コード ネット検索機能 ===
+// === JAN コード ネット検索機能（高速版） ===
 // =============================================
 
 // 検索結果キャッシュ
 const webCache = {};
 
-// メイン検索関数：複数APIから並列検索
-async function searchJanOnline(jan) {
-  if (webCache[jan]) return webCache[jan];
-
-  const result = { name: '', maker: '', spec: '', found: false, source: '' };
-
-  try {
-    // 複数のAPIを並列で呼び出し
-    const searches = [
-      searchOpenFoodFacts(jan),
-      searchUPCItemDB(jan)
-    ];
-
-    const results = await Promise.allSettled(searches);
-
-    for (const r of results) {
-      if (r.status === 'fulfilled' && r.value && r.value.found) {
-        // 見つかった結果をマージ（先に見つかった方を優先、空の項目は後から埋める）
-        if (!result.name && r.value.name) result.name = r.value.name;
-        if (!result.maker && r.value.maker) result.maker = r.value.maker;
-        if (!result.spec && r.value.spec) result.spec = r.value.spec;
-        if (!result.source) result.source = r.value.source;
-        result.found = true;
-      }
-    }
-  } catch (e) {
-    console.log('JAN検索エラー:', e);
-  }
-
-  if (result.found) {
-    webCache[jan] = result;
-  }
-  return result;
+// タイムアウト付きfetch（iOS互換）
+function fetchWithTimeout(url, ms) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return fetch(url, { signal: controller.signal }).finally(() => clearTimeout(timer));
 }
 
-// Open Food Facts API（食品中心、無料、CORS対応）
+// バックグラウンド検索：結果が見つかり次第フォームに反映
+function searchJanBackground(jan) {
+  if (webCache[jan]) {
+    applyWebResult(webCache[jan]);
+    return;
+  }
+
+  const webInfoArea = document.getElementById('webInfoArea');
+  webInfoArea.innerHTML = '<div class="web-searching"><span class="spinner"></span>検索中...</div>';
+
+  let found = false;
+
+  // 各APIを独立して走らせ、見つかったら即反映
+  const apis = [
+    searchOpenFoodFacts(jan),
+    searchUPCItemDB(jan)
+  ];
+
+  let pending = apis.length;
+
+  apis.forEach(p => {
+    p.then(result => {
+      if (result && result.found && !found) {
+        found = true;
+        webCache[jan] = result;
+        applyWebResult(result);
+      }
+    }).catch(() => {}).finally(() => {
+      pending--;
+      if (pending === 0 && !found) {
+        webInfoArea.innerHTML = '<div class="not-found">ネット検索: 該当なし</div>';
+      }
+    });
+  });
+}
+
+// 検索結果をフォームに反映
+function applyWebResult(result) {
+  const webInfoArea = document.getElementById('webInfoArea');
+  webInfoArea.innerHTML =
+    '<div class="web-info">' +
+      '<div class="title">ネット検索（' + escHtml(result.source) + '）</div>' +
+      '<div class="detail">' +
+        (result.name ? '品名: <span class="hi">' + escHtml(result.name) + '</span><br>' : '') +
+        (result.maker ? 'メーカー: <span class="hi">' + escHtml(result.maker) + '</span><br>' : '') +
+        (result.spec ? '規格: <span class="hi">' + escHtml(result.spec) + '</span>' : '') +
+      '</div>' +
+    '</div>';
+  // 空欄のみ自動入力
+  if (!document.getElementById('inName').value && result.name) {
+    document.getElementById('inName').value = result.name;
+  }
+  if (!document.getElementById('inMaker').value && result.maker) {
+    document.getElementById('inMaker').value = result.maker;
+  }
+  if (!document.getElementById('inSpec').value && result.spec) {
+    document.getElementById('inSpec').value = result.spec;
+  }
+}
+
+// Open Food Facts API（食品中心、無料、CORS対応）タイムアウト3秒
 async function searchOpenFoodFacts(jan) {
   try {
-    const resp = await fetch(`https://world.openfoodfacts.org/api/v2/product/${jan}.json`, {
-      signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined
-    });
+    const resp = await fetchWithTimeout(
+      `https://world.openfoodfacts.org/api/v2/product/${jan}.json?fields=product_name_ja,product_name,generic_name_ja,generic_name,brands,brand_owner,quantity`,
+      3000
+    );
     if (!resp.ok) return null;
     const data = await resp.json();
     if (data.status !== 1 || !data.product) return null;
@@ -390,19 +423,20 @@ async function searchOpenFoodFacts(jan) {
     const p = data.product;
     const name = p.product_name_ja || p.product_name || p.generic_name_ja || p.generic_name || '';
     const maker = p.brands || p.brand_owner || '';
-    const spec = p.quantity || p.net_weight || '';
+    const spec = p.quantity || '';
 
     if (!name && !maker) return null;
     return { name, maker, spec, found: true, source: 'Open Food Facts' };
   } catch (e) { return null; }
 }
 
-// UPC ItemDB API（汎用バーコード検索、CORS対応）
+// UPC ItemDB API（汎用バーコード検索）タイムアウト3秒
 async function searchUPCItemDB(jan) {
   try {
-    const resp = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${jan}`, {
-      signal: AbortSignal.timeout ? AbortSignal.timeout(5000) : undefined
-    });
+    const resp = await fetchWithTimeout(
+      `https://api.upcitemdb.com/prod/trial/lookup?upc=${jan}`,
+      3000
+    );
     if (!resp.ok) return null;
     const data = await resp.json();
     if (!data.items || data.items.length === 0) return null;
@@ -410,8 +444,7 @@ async function searchUPCItemDB(jan) {
     const item = data.items[0];
     const name = item.title || '';
     const maker = item.brand || '';
-    // 規格はdescriptionから抽出を試みる
-    const spec = item.weight || item.size || item.dimension || '';
+    const spec = item.weight || item.size || '';
 
     if (!name && !maker) return null;
     return { name, maker, spec, found: true, source: 'UPC ItemDB' };
@@ -556,13 +589,9 @@ async function stopScan() {
 // === 商品検索＆フォーム表示 ===
 let currentJan = '';
 
-async function openForm(jan) {
+function openForm(jan) {
   currentJan = jan;
   document.getElementById('formJan').textContent = jan;
-
-  // ネット検索エリア：検索中表示
-  const webInfoArea = document.getElementById('webInfoArea');
-  webInfoArea.innerHTML = '<div class="web-searching"><span class="spinner"></span>ネット検索中...</div>';
 
   // マスター検索
   const masterInfoArea = document.getElementById('masterInfoArea');
@@ -624,35 +653,8 @@ async function openForm(jan) {
     }
   }
 
-  // ネット検索を非同期実行
-  try {
-    const webResult = await searchJanOnline(jan);
-    if (webResult && webResult.found) {
-      webInfoArea.innerHTML =
-        '<div class="web-info">' +
-          '<div class="title">ネット検索結果（' + escHtml(webResult.source) + '）</div>' +
-          '<div class="detail">' +
-            (webResult.name ? '品名: <span class="hi">' + escHtml(webResult.name) + '</span><br>' : '') +
-            (webResult.maker ? 'メーカー: <span class="hi">' + escHtml(webResult.maker) + '</span><br>' : '') +
-            (webResult.spec ? '規格: <span class="hi">' + escHtml(webResult.spec) + '</span>' : '') +
-          '</div>' +
-        '</div>';
-      // フォームに自動入力（空の場合のみ）
-      if (!document.getElementById('inName').value && webResult.name) {
-        document.getElementById('inName').value = webResult.name;
-      }
-      if (!document.getElementById('inMaker').value && webResult.maker) {
-        document.getElementById('inMaker').value = webResult.maker;
-      }
-      if (!document.getElementById('inSpec').value && webResult.spec) {
-        document.getElementById('inSpec').value = webResult.spec;
-      }
-    } else {
-      webInfoArea.innerHTML = '<div class="not-found">ネット検索: 該当なし</div>';
-    }
-  } catch (e) {
-    webInfoArea.innerHTML = '<div class="not-found">ネット検索: 通信エラー</div>';
-  }
+  // ネット検索をバックグラウンドで実行（フォームは即座に操作可能）
+  searchJanBackground(jan);
 
   setTimeout(() => {
     document.getElementById('formArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
