@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<!-- saved from url=(0056)file:///Users/sasakikeiichi/AI-BRIDGE/CloseoutBuyer.html -->
+<html lang="ja"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>CloseoutBuyer - スポット商品買付</title>
+<!-- CDNからhtml5-qrcode読み込み（iPhone対応） -->
+<script src="./CloseoutBuyer - スポット商品買付−1_files/html5-qrcode.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans',sans-serif;background:#0F172A;color:#F8FAFC;padding:12px;min-height:100vh;-webkit-text-size-adjust:100%}
+h2{font-size:18px;margin-bottom:8px}
+
+.tabs{display:flex;gap:4px;margin:8px 0}
+.tab{flex:1;padding:10px;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;background:#1E293B;color:#94A3B8;-webkit-tap-highlight-color:transparent}
+.tab.active{background:#F59E0B;color:#000}
+
+#reader{width:100%;margin:8px 0;border-radius:8px;overflow:hidden}
+
+/* データ読込状態 */
+.data-status{background:#1E293B;border-radius:8px;padding:10px;margin:8px 0;font-size:12px;color:#94A3B8}
+.data-status .ok{color:#10B981}
+.data-status .ng{color:#EF4444}
+.data-status .loading{color:#F59E0B}
+
+/* 入力フォーム */
+.form-area{background:#1E293B;border-radius:12px;padding:16px;margin:8px 0;display:none}
+.form-area.show{display:block}
+.form-title{font-size:16px;font-weight:700;color:#F59E0B;margin-bottom:12px}
+.form-jan{font-size:18px;font-weight:700;text-align:center;margin-bottom:8px;color:#06B6D4}
+
+/* マスター情報表示 */
+.master-info{background:#334155;border-radius:8px;padding:12px;margin:8px 0;border-left:4px solid #06B6D4}
+.master-info .name{font-size:16px;font-weight:700;color:#F8FAFC;margin-bottom:4px}
+.master-info .detail{font-size:13px;color:#94A3B8;line-height:1.8}
+.master-info .detail .hi{color:#F59E0B;font-weight:700}
+.not-found{background:#334155;border-radius:8px;padding:10px;margin:8px 0;color:#94A3B8;font-size:13px;text-align:center;border-left:4px solid #475569}
+
+/* ネット検索結果 */
+.web-info{background:#1a1a2e;border-radius:8px;padding:12px;margin:8px 0;border-left:4px solid #8B5CF6}
+.web-info .title{font-size:13px;font-weight:700;color:#8B5CF6;margin-bottom:4px}
+.web-info .detail{font-size:13px;color:#94A3B8;line-height:1.8}
+.web-info .detail .hi{color:#8B5CF6;font-weight:700}
+.web-searching{background:#1a1a2e;border-radius:8px;padding:12px;margin:8px 0;border-left:4px solid #8B5CF6;text-align:center;color:#8B5CF6;font-size:13px}
+.web-searching .spinner{display:inline-block;width:16px;height:16px;border:2px solid #8B5CF6;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* 過去実績 */
+.history-info{background:#1a2e1a;border-radius:8px;padding:12px;margin:8px 0;border-left:4px solid #10B981}
+.history-info .title{font-size:13px;font-weight:700;color:#10B981;margin-bottom:4px}
+.history-info .detail{font-size:13px;color:#94A3B8;line-height:1.8}
+.history-info .detail .hi{color:#10B981;font-weight:700}
+
+.form-row{display:flex;gap:8px;align-items:center;margin:8px 0}
+.form-row label{font-size:13px;color:#94A3B8;width:80px;flex-shrink:0}
+.form-row input,.form-row select{flex:1;padding:10px;border-radius:8px;border:1px solid #475569;background:#334155;color:#fff;font-size:16px;-webkit-appearance:none}
+.btn{padding:12px 20px;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;width:100%;margin:4px 0;-webkit-tap-highlight-color:transparent}
+.btn-add{background:#10B981;color:#fff}
+.btn-cancel{background:#475569;color:#fff}
+.btn-scan{background:#F59E0B;color:#000}
+.margin-info{text-align:center;font-size:13px;color:#94A3B8;margin:4px 0}
+.margin-info .val{color:#F59E0B;font-weight:700;font-size:16px}
+
+.manual-area{display:flex;gap:6px;margin:8px 0}
+.manual-area input{flex:1;padding:10px;border-radius:8px;border:1px solid #475569;background:#1E293B;color:#fff;font-size:16px;-webkit-appearance:none}
+.manual-area button{padding:10px 16px;border:none;border-radius:8px;background:#06B6D4;color:#000;font-size:14px;font-weight:700;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+
+/* カメラ起動ボタン（iOS用） */
+.camera-start-btn{background:#F59E0B;color:#000;padding:16px;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;width:100%;margin:8px 0;-webkit-tap-highlight-color:transparent}
+.camera-stop-btn{background:#EF4444;color:#fff;padding:10px;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;width:100%;margin:4px 0;-webkit-tap-highlight-color:transparent}
+
+/* リスト */
+.list-area{display:none}
+.list-area.show{display:block}
+.item{background:#1E293B;border-radius:10px;padding:12px;margin:6px 0;border-left:4px solid #F59E0B}
+.item-head{display:flex;justify-content:space-between;align-items:center}
+.item-jan{font-size:12px;color:#06B6D4}
+.item-name{font-weight:700;font-size:14px;margin:4px 0}
+.item-detail{font-size:12px;color:#94A3B8;line-height:1.8}
+.item-detail .hi{color:#F59E0B;font-weight:700}
+.item-del{background:none;border:none;color:#EF4444;font-size:18px;cursor:pointer;padding:4px 8px;-webkit-tap-highlight-color:transparent}
+.summary{background:#1E293B;border-radius:12px;padding:16px;margin:8px 0;text-align:center}
+.summary .big{font-size:24px;font-weight:700;color:#F59E0B}
+.summary .sub{font-size:12px;color:#94A3B8;margin-top:4px}
+.empty-msg{text-align:center;color:#475569;padding:40px 0;font-size:14px}
+.btn-csv{background:#8B5CF6;color:#fff}
+
+/* データ管理タブ */
+.data-area{display:none}
+.data-area.show{display:block}
+.file-input-wrap{background:#1E293B;border-radius:12px;padding:16px;margin:8px 0}
+.file-input-wrap h3{font-size:14px;color:#F59E0B;margin-bottom:8px}
+.file-input-wrap p{font-size:12px;color:#94A3B8;margin-bottom:8px}
+.file-input-wrap input[type=file]{font-size:14px;color:#94A3B8}
+
+/* 注意メッセージ */
+.notice{background:#1E293B;border-radius:8px;padding:10px;margin:8px 0;font-size:12px;color:#F59E0B;text-align:center;border:1px solid #F59E0B33}
+</style>
+</head>
+<body>
+
+<h2>CloseoutBuyer</h2>
+
+<div class="tabs">
+  <button class="tab active" onclick="showTab(&#39;scan&#39;)">スキャン</button>
+  <button class="tab" onclick="showTab(&#39;list&#39;)">リスト(<span id="countBadge">0</span>)</button>
+  <button class="tab" onclick="showTab(&#39;data&#39;)">データ</button>
+</div>
+
+<!-- === スキャンタブ === -->
+<div id="scanView">
+  <div class="data-status" id="dataStatus">
+    マスター: <span id="masterStatus" class="ng">未読込</span> ／
+    実績: <span id="historyStatus" class="ng">未読込</span>
+  </div>
+
+  <div id="cameraControls">
+    <button class="camera-start-btn" id="startCamBtn" onclick="toggleScan()">カメラを起動してスキャン</button>
+  </div>
+  <div id="reader"></div>
+  <button class="camera-stop-btn" id="stopCamBtn" onclick="toggleScan()" style="display:none">カメラを停止</button>
+
+  <div class="manual-area">
+    <input type="tel" id="manJan" placeholder="JANコード手入力" enterkeyhint="search">
+    <button onclick="manualInput()">検索</button>
+  </div>
+
+  <!-- 商品入力フォーム -->
+  <div class="form-area" id="formArea">
+    <div class="form-title">商品情報入力</div>
+    <div class="form-jan" id="formJan"></div>
+
+    <!-- ネット検索結果 -->
+    <div id="webInfoArea"></div>
+    <!-- マスター情報 -->
+    <div id="masterInfoArea"></div>
+    <!-- 過去実績 -->
+    <div id="historyInfoArea"></div>
+
+    <div class="form-row">
+      <label>品名</label>
+      <input type="text" id="inName" placeholder="商品名">
+    </div>
+    <div class="form-row">
+      <label>メーカー</label>
+      <input type="text" id="inMaker" placeholder="メーカー名">
+    </div>
+    <div class="form-row">
+      <label>規格</label>
+      <input type="text" id="inSpec" placeholder="規格（容量等）">
+    </div>
+    <div class="form-row">
+      <label>仕入単価</label>
+      <input type="number" id="inPrice" placeholder="円" inputmode="numeric">
+    </div>
+    <div class="form-row">
+      <label>売価(税抜)</label>
+      <input type="number" id="inSellPrice" placeholder="円" inputmode="numeric">
+    </div>
+    <div class="margin-info" id="marginInfo"></div>
+    <div class="form-row">
+      <label>数量</label>
+      <input type="number" id="inQty" value="1" min="1" inputmode="numeric">
+    </div>
+    <div class="form-row">
+      <label>賞味期限</label>
+      <input type="date" id="inExpiry">
+    </div>
+    <div class="form-row">
+      <label>メモ</label>
+      <input type="text" id="inMemo" placeholder="任意">
+    </div>
+    <button class="btn btn-add" onclick="addItem()">リストに追加</button>
+    <button class="btn btn-cancel" onclick="cancelForm()">キャンセル</button>
+  </div>
+</div>
+
+<!-- === リストタブ === -->
+<div class="list-area" id="listView">
+  <div class="summary" id="summary"></div>
+  <div id="listItems"></div>
+  <button class="btn btn-csv" onclick="exportCSV()" style="margin-top:12px">CSV出力</button>
+  <button class="btn btn-scan" onclick="showTab(&#39;scan&#39;)" style="margin-top:6px">スキャンに戻る</button>
+</div>
+
+<!-- === データ管理タブ === -->
+<div class="data-area" id="dataView">
+  <div class="file-input-wrap">
+    <h3>商品マスター（CSV）</h3>
+    <p>列: JAN, 商品名, 売価, 原価, 部門</p>
+    <p id="masterLoadInfo"></p>
+    <input type="file" accept=".csv" onchange="loadMasterCSV(this.files[0])">
+  </div>
+  <div class="file-input-wrap">
+    <h3>クローズアウト購入実績（CSV）</h3>
+    <p>列: JANCD, 品名, メーカー名, 規格, 定番売価, 定番原価, 過去購入原価, 購入仕入先, 購入数量</p>
+    <p id="historyLoadInfo"></p>
+    <input type="file" accept=".csv" onchange="loadHistoryCSV(this.files[0])">
+  </div>
+  <div class="file-input-wrap">
+    <h3>ネット検索について</h3>
+    <p>バーコードスキャン時、インターネットから自動的に品名・メーカー名・規格を検索します。複数のAPIを使用し、見つかった情報をフォームに自動入力します。</p>
+    <p style="color:#F59E0B">※ HTTPS環境（GitHub Pages等）での使用を推奨します。</p>
+  </div>
+  <div class="file-input-wrap">
+    <h3>自動読込について</h3>
+    <p>同じサーバー上に master.csv / closeout-history.csv を置くと、ページ表示時に自動で読み込みます。</p>
+  </div>
+</div>
+
+<script>
+// === データストア ===
+const masterDB = {};   // JAN → {name, sellPrice, cost, dept}
+const historyDB = {};  // JAN → {name, maker, spec, sellPrice, cost, buyPrice, supplier, qty}
+
+// === タブ切替 ===
+function showTab(name) {
+  document.getElementById('scanView').style.display = name === 'scan' ? 'block' : 'none';
+  document.getElementById('listView').className = name === 'list' ? 'list-area show' : 'list-area';
+  document.getElementById('dataView').className = name === 'data' ? 'data-area show' : 'data-area';
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    t.className = 'tab' + ((i === 0 && name === 'scan') || (i === 1 && name === 'list') || (i === 2 && name === 'data') ? ' active' : '');
+  });
+  if (name === 'list') renderList();
+}
+
+// === CSV読込：商品マスター ===
+function loadMasterCSV(file) {
+  if (!file) return;
+  const statusEl = document.getElementById('masterStatus');
+  const infoEl = document.getElementById('masterLoadInfo');
+  statusEl.className = 'loading';
+  statusEl.textContent = '読込中...';
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    const lines = text.split('\n');
+    let count = 0;
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseCSVLine(lines[i]);
+      if (cols.length < 3) continue;
+      const jan = cols[0].trim();
+      if (!jan) continue;
+      masterDB[jan] = {
+        name: cols[1] ? cols[1].trim() : '',
+        sellPrice: cols[2] ? parseInt(cols[2]) || 0 : 0,
+        cost: cols[3] ? parseInt(cols[3]) || 0 : 0,
+        dept: cols[4] ? cols[4].trim() : ''
+      };
+      count++;
+    }
+    statusEl.className = 'ok';
+    statusEl.textContent = count.toLocaleString() + '件';
+    infoEl.textContent = count.toLocaleString() + '件読込完了';
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// === CSV読込：クローズアウト購入実績 ===
+function loadHistoryCSV(file) {
+  if (!file) return;
+  const statusEl = document.getElementById('historyStatus');
+  const infoEl = document.getElementById('historyLoadInfo');
+  statusEl.className = 'loading';
+  statusEl.textContent = '読込中...';
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    const lines = text.split('\n');
+    let count = 0;
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseCSVLine(lines[i]);
+      if (cols.length < 2) continue;
+      const jan = cols[0].trim();
+      if (!jan) continue;
+      historyDB[jan] = {
+        name: cols[1] ? cols[1].trim() : '',
+        maker: cols[2] ? cols[2].trim() : '',
+        spec: cols[3] ? cols[3].trim() : '',
+        sellPrice: cols[4] ? parseInt(cols[4]) || 0 : 0,
+        cost: cols[5] ? parseInt(cols[5]) || 0 : 0,
+        buyPrice: cols[6] ? parseInt(cols[6]) || 0 : 0,
+        supplier: cols[7] ? cols[7].trim() : '',
+        qty: cols[8] ? parseInt(cols[8]) || 0 : 0
+      };
+      count++;
+    }
+    statusEl.className = 'ok';
+    statusEl.textContent = count.toLocaleString() + '件';
+    infoEl.textContent = count.toLocaleString() + '件読込完了';
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// === 自動読込（サーバー上のCSV）===
+async function autoLoadCSV(url, loader) {
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return false;
+    const text = await resp.text();
+    const blob = new Blob([text], { type: 'text/csv' });
+    const file = new File([blob], 'auto.csv');
+    loader(file);
+    return true;
+  } catch (e) { return false; }
+}
+
+// ページ読込時に自動読込を試行
+window.addEventListener('DOMContentLoaded', () => {
+  autoLoadCSV('./master.csv', loadMasterCSV);
+  autoLoadCSV('./closeout-history.csv', loadHistoryCSV);
+});
+
+// === CSVパーサー（カンマ内引用符対応） ===
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuote) {
+      if (c === '"' && line[i + 1] === '"') { current += '"'; i++; }
+      else if (c === '"') { inQuote = false; }
+      else { current += c; }
+    } else {
+      if (c === '"') { inQuote = true; }
+      else if (c === ',') { result.push(current); current = ''; }
+      else if (c === '\r') { /* skip */ }
+      else { current += c; }
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+// =============================================
+// === JAN コード ネット検索機能 ===
+// =============================================
+
+// 検索結果キャッシュ
+const webCache = {};
+
+// メイン検索関数：複数APIから並列検索
+async function searchJanOnline(jan) {
+  if (webCache[jan]) return webCache[jan];
+
+  const result = { name: '', maker: '', spec: '', found: false, source: '' };
+
+  try {
+    // 複数のAPIを並列で呼び出し
+    const searches = [
+      searchOpenFoodFacts(jan),
+      searchUPCItemDB(jan)
+    ];
+
+    const results = await Promise.allSettled(searches);
+
+    for (const r of results) {
+      if (r.status === 'fulfilled' && r.value && r.value.found) {
+        // 見つかった結果をマージ（先に見つかった方を優先、空の項目は後から埋める）
+        if (!result.name && r.value.name) result.name = r.value.name;
+        if (!result.maker && r.value.maker) result.maker = r.value.maker;
+        if (!result.spec && r.value.spec) result.spec = r.value.spec;
+        if (!result.source) result.source = r.value.source;
+        result.found = true;
+      }
+    }
+  } catch (e) {
+    console.log('JAN検索エラー:', e);
+  }
+
+  if (result.found) {
+    webCache[jan] = result;
+  }
+  return result;
+}
+
+// Open Food Facts API（食品中心、無料、CORS対応）
+async function searchOpenFoodFacts(jan) {
+  try {
+    const resp = await fetch(`https://world.openfoodfacts.org/api/v2/product/${jan}.json`, {
+      signal: AbortSignal.timeout(5000)
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (data.status !== 1 || !data.product) return null;
+
+    const p = data.product;
+    const name = p.product_name_ja || p.product_name || p.generic_name_ja || p.generic_name || '';
+    const maker = p.brands || p.brand_owner || '';
+    const spec = p.quantity || p.net_weight || '';
+
+    if (!name && !maker) return null;
+    return { name, maker, spec, found: true, source: 'Open Food Facts' };
+  } catch (e) { return null; }
+}
+
+// UPC ItemDB API（汎用バーコード検索、CORS対応）
+async function searchUPCItemDB(jan) {
+  try {
+    const resp = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${jan}`, {
+      signal: AbortSignal.timeout(5000)
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (!data.items || data.items.length === 0) return null;
+
+    const item = data.items[0];
+    const name = item.title || '';
+    const maker = item.brand || '';
+    // 規格はdescriptionから抽出を試みる
+    const spec = item.weight || item.size || item.dimension || '';
+
+    if (!name && !maker) return null;
+    return { name, maker, spec, found: true, source: 'UPC ItemDB' };
+  } catch (e) { return null; }
+}
+
+
+// =============================================
+// === スキャナー（iPhone対応版） ===
+// =============================================
+let scanner = null;
+let scanning = false;
+let lastCode = '';
+let lastCodeTime = 0;
+
+async function toggleScan() {
+  if (scanning) {
+    await stopScan();
+  } else {
+    await startScan();
+  }
+}
+
+async function startScan() {
+  if (scanning) return;
+  const startBtn = document.getElementById('startCamBtn');
+  const stopBtn = document.getElementById('stopCamBtn');
+
+  try {
+    startBtn.textContent = 'カメラ起動中...';
+    startBtn.disabled = true;
+
+    scanner = new Html5Qrcode("reader");
+
+    // iOS対応: facingModeを使用（カメラID指定よりiOSで安定）
+    const config = {
+      fps: 10,
+      qrbox: { width: 250, height: 120 },
+      aspectRatio: 1.5,
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.CODE_39
+      ]
+    };
+
+    const onSuccess = (text, detail) => {
+      const now = Date.now();
+      if (text === lastCode && now - lastCodeTime < 3000) return;
+      lastCode = text;
+      lastCodeTime = now;
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      openForm(text);
+    };
+
+    const onFail = () => {};
+
+    await scanner.start(
+      { facingMode: "environment" },
+      config,
+      onSuccess,
+      onFail
+    );
+
+    scanning = true;
+    startBtn.style.display = 'none';
+    stopBtn.style.display = 'block';
+  } catch (e) {
+    console.error('Scanner error:', e);
+    startBtn.textContent = 'カメラを起動してスキャン';
+    startBtn.disabled = false;
+    // iOSでカメラ権限が拒否された場合のメッセージ
+    if (e.toString().includes('NotAllowedError') || e.toString().includes('Permission')) {
+      alert('カメラへのアクセスが拒否されました。\n\n設定 > Safari > カメラ から許可してください。\n\nまた、HTTPSでのアクセスが必要です。');
+    } else {
+      alert('カメラの起動に失敗しました。\n\n' + e.toString());
+    }
+  }
+}
+
+async function stopScan() {
+  const startBtn = document.getElementById('startCamBtn');
+  const stopBtn = document.getElementById('stopCamBtn');
+
+  try {
+    if (scanner) {
+      await scanner.stop();
+      scanner.clear();
+    }
+  } catch (e) { console.log(e); }
+
+  scanner = null;
+  scanning = false;
+  startBtn.style.display = 'block';
+  startBtn.textContent = 'カメラを起動してスキャン';
+  startBtn.disabled = false;
+  stopBtn.style.display = 'none';
+}
+
+// === 商品検索＆フォーム表示 ===
+let currentJan = '';
+
+async function openForm(jan) {
+  currentJan = jan;
+  document.getElementById('formJan').textContent = jan;
+
+  // ネット検索エリア：検索中表示
+  const webInfoArea = document.getElementById('webInfoArea');
+  webInfoArea.innerHTML = '<div class="web-searching"><span class="spinner"></span>ネット検索中...</div>';
+
+  // マスター検索
+  const masterInfoArea = document.getElementById('masterInfoArea');
+  const master = masterDB[jan];
+  if (master && master.name) {
+    masterInfoArea.innerHTML =
+      '<div class="master-info">' +
+        '<div class="name">' + escHtml(master.name) + '</div>' +
+        '<div class="detail">' +
+          '定番売価: <span class="hi">&yen;' + (master.sellPrice || '-') + '</span>' +
+          (master.cost ? ' ／ 原価: &yen;' + master.cost : '') +
+          (master.dept ? ' ／ 部門: ' + master.dept : '') +
+        '</div>' +
+      '</div>';
+    document.getElementById('inName').value = master.name;
+    document.getElementById('inSellPrice').value = master.sellPrice || '';
+  } else {
+    masterInfoArea.innerHTML = '<div class="not-found">マスター未登録</div>';
+    document.getElementById('inName').value = '';
+    document.getElementById('inSellPrice').value = '';
+  }
+
+  // クローズアウト実績検索
+  const historyInfoArea = document.getElementById('historyInfoArea');
+  const hist = historyDB[jan];
+  if (hist && (hist.name || hist.buyPrice)) {
+    historyInfoArea.innerHTML =
+      '<div class="history-info">' +
+        '<div class="title">過去クローズアウト実績あり</div>' +
+        '<div class="detail">' +
+          (hist.name ? '品名: ' + escHtml(hist.name) + '<br>' : '') +
+          (hist.maker ? 'メーカー: ' + escHtml(hist.maker) + '<br>' : '') +
+          (hist.spec ? '規格: ' + escHtml(hist.spec) + '<br>' : '') +
+          (hist.buyPrice ? '過去購入原価: <span class="hi">&yen;' + hist.buyPrice.toLocaleString() + '</span><br>' : '') +
+          (hist.supplier ? '仕入先: ' + escHtml(hist.supplier) + '<br>' : '') +
+          (hist.qty ? '購入数量: ' + hist.qty.toLocaleString() : '') +
+        '</div>' +
+      '</div>';
+  } else {
+    historyInfoArea.innerHTML = '';
+  }
+
+  // フィールド初期化
+  document.getElementById('inMaker').value = '';
+  document.getElementById('inSpec').value = '';
+  document.getElementById('inPrice').value = '';
+  document.getElementById('inQty').value = '1';
+  document.getElementById('inExpiry').value = '';
+  document.getElementById('inMemo').value = '';
+  document.getElementById('marginInfo').textContent = '';
+  document.getElementById('formArea').classList.add('show');
+
+  // 実績データからメーカー・規格を事前セット
+  if (hist) {
+    if (hist.maker) document.getElementById('inMaker').value = hist.maker;
+    if (hist.spec) document.getElementById('inSpec').value = hist.spec;
+    if (!document.getElementById('inName').value && hist.name) {
+      document.getElementById('inName').value = hist.name;
+    }
+  }
+
+  // ネット検索を非同期実行
+  try {
+    const webResult = await searchJanOnline(jan);
+    if (webResult && webResult.found) {
+      webInfoArea.innerHTML =
+        '<div class="web-info">' +
+          '<div class="title">ネット検索結果（' + escHtml(webResult.source) + '）</div>' +
+          '<div class="detail">' +
+            (webResult.name ? '品名: <span class="hi">' + escHtml(webResult.name) + '</span><br>' : '') +
+            (webResult.maker ? 'メーカー: <span class="hi">' + escHtml(webResult.maker) + '</span><br>' : '') +
+            (webResult.spec ? '規格: <span class="hi">' + escHtml(webResult.spec) + '</span>' : '') +
+          '</div>' +
+        '</div>';
+      // フォームに自動入力（空の場合のみ）
+      if (!document.getElementById('inName').value && webResult.name) {
+        document.getElementById('inName').value = webResult.name;
+      }
+      if (!document.getElementById('inMaker').value && webResult.maker) {
+        document.getElementById('inMaker').value = webResult.maker;
+      }
+      if (!document.getElementById('inSpec').value && webResult.spec) {
+        document.getElementById('inSpec').value = webResult.spec;
+      }
+    } else {
+      webInfoArea.innerHTML = '<div class="not-found">ネット検索: 該当なし</div>';
+    }
+  } catch (e) {
+    webInfoArea.innerHTML = '<div class="not-found">ネット検索: 通信エラー</div>';
+  }
+
+  setTimeout(() => {
+    document.getElementById('formArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function cancelForm() {
+  document.getElementById('formArea').classList.remove('show');
+  currentJan = '';
+}
+
+// 手入力
+function manualInput() {
+  const code = document.getElementById('manJan').value.trim();
+  if (!code) return;
+  openForm(code);
+  document.getElementById('manJan').value = '';
+}
+
+// Enterキーでも手入力検索
+document.getElementById('manJan').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    manualInput();
+  }
+});
+
+// 粗利計算
+document.getElementById('inPrice').addEventListener('input', calcMargin);
+document.getElementById('inSellPrice').addEventListener('input', calcMargin);
+function calcMargin() {
+  const cost = parseFloat(document.getElementById('inPrice').value) || 0;
+  const sell = parseFloat(document.getElementById('inSellPrice').value) || 0;
+  const el = document.getElementById('marginInfo');
+  if (cost > 0 && sell > 0) {
+    const margin = ((sell - cost) / sell * 100).toFixed(1);
+    el.innerHTML = '粗利率: <span class="val">' + margin + '%</span>';
+  } else {
+    el.textContent = '';
+  }
+}
+
+// === 買付リスト ===
+let buyList = [];
+
+function addItem() {
+  const name = document.getElementById('inName').value.trim();
+  const maker = document.getElementById('inMaker').value.trim();
+  const spec = document.getElementById('inSpec').value.trim();
+  const price = parseFloat(document.getElementById('inPrice').value) || 0;
+  const sellPrice = parseFloat(document.getElementById('inSellPrice').value) || 0;
+  const qty = parseInt(document.getElementById('inQty').value) || 1;
+  const expiry = document.getElementById('inExpiry').value;
+  const memo = document.getElementById('inMemo').value.trim();
+
+  if (price <= 0) {
+    alert('仕入単価を入力してください');
+    document.getElementById('inPrice').focus();
+    return;
+  }
+
+  const margin = sellPrice > 0 ? ((sellPrice - price) / sellPrice * 100).toFixed(1) : '-';
+
+  buyList.push({
+    jan: currentJan, name, maker, spec, price, sellPrice, qty, expiry, memo, margin,
+    time: new Date().toLocaleTimeString('ja-JP')
+  });
+
+  document.getElementById('formArea').classList.remove('show');
+  document.getElementById('countBadge').textContent = buyList.length;
+  currentJan = '';
+  lastCode = '';
+  lastCodeTime = 0;
+}
+
+function renderList() {
+  const listEl = document.getElementById('listItems');
+  const summaryEl = document.getElementById('summary');
+
+  if (buyList.length === 0) {
+    listEl.innerHTML = '<div class="empty-msg">まだ商品がありません</div>';
+    summaryEl.innerHTML = '';
+    return;
+  }
+
+  let totalAmount = 0, totalQty = 0;
+  buyList.forEach(item => { totalAmount += item.price * item.qty; totalQty += item.qty; });
+
+  summaryEl.innerHTML =
+    '<div class="big">&yen;' + totalAmount.toLocaleString() + '</div>' +
+    '<div class="sub">' + buyList.length + '品目 / ' + totalQty + '個</div>';
+
+  listEl.innerHTML = buyList.map((item, i) =>
+    '<div class="item">' +
+      '<div class="item-head">' +
+        '<span class="item-jan">' + item.jan + '</span>' +
+        '<button class="item-del" onclick="delItem(' + i + ')">&#x2715;</button>' +
+      '</div>' +
+      '<div class="item-name">' + escHtml(item.name || '(品名なし)') + '</div>' +
+      (item.maker ? '<div style="font-size:11px;color:#8B5CF6">' + escHtml(item.maker) + (item.spec ? ' / ' + escHtml(item.spec) : '') + '</div>' : '') +
+      '<div class="item-detail">' +
+        '仕入: <span class="hi">&yen;' + item.price.toLocaleString() + '</span> x ' + item.qty + '個 = &yen;' + (item.price * item.qty).toLocaleString() +
+        (item.sellPrice > 0 ? ' / 売価&yen;' + item.sellPrice.toLocaleString() + ' 粗利' + item.margin + '%' : '') +
+        (item.expiry ? ' / 期限:' + item.expiry : '') +
+        (item.memo ? ' / ' + item.memo : '') +
+      '</div>' +
+    '</div>'
+  ).join('');
+}
+
+function delItem(i) {
+  if (confirm('削除しますか？')) {
+    buyList.splice(i, 1);
+    document.getElementById('countBadge').textContent = buyList.length;
+    renderList();
+  }
+}
+
+// === CSV出力（メーカー・規格列追加） ===
+function exportCSV() {
+  if (buyList.length === 0) { alert('リストが空です'); return; }
+  const header = 'JANコード,品名,メーカー,規格,仕入単価,売価,粗利率,数量,金額,賞味期限,メモ,登録時刻';
+  const rows = buyList.map(item =>
+    [
+      item.jan,
+      '"' + (item.name||'').replace(/"/g,'""') + '"',
+      '"' + (item.maker||'').replace(/"/g,'""') + '"',
+      '"' + (item.spec||'').replace(/"/g,'""') + '"',
+      item.price, item.sellPrice, item.margin, item.qty,
+      item.price * item.qty, item.expiry,
+      '"' + (item.memo||'').replace(/"/g,'""') + '"',
+      item.time
+    ].join(',')
+  );
+  const bom = '\uFEFF';
+  const csv = bom + header + '\n' + rows.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'closeout_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+
+
+
+</body></html>
